@@ -17,7 +17,23 @@ from typing import Any, Dict, List
 from tools import ALL_TOOLS, TOOL_REGISTRY
 from llm import chat_completion, SessionUsage, DEFAULT_MODEL
 
-SYSTEM_PROMPT = """\
+
+def build_system_prompt(user_profile: dict) -> str:
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    return f"""\
+## Session Context
+Current time: {now}
+User: {user_profile.get('name', 'Guest')}
+Membership: {user_profile.get('tier', 'free')}
+Home airport: {user_profile.get('home_airport', 'N/A')}
+Preferred currency: {user_profile.get('currency', 'USD')}
+Loyalty programs: {', '.join(user_profile.get('loyalty_programs', []))}
+Dietary restrictions: {', '.join(user_profile.get('dietary', []))}
+Passport nationality: {user_profile.get('nationality', 'N/A')}
+Language preference: {user_profile.get('language', 'English')}
+
+## Role
 You are TravelBot, a premium AI travel assistant powered by real-time data.
 You help users plan trips by searching flights, hotels, weather, restaurants,
 attractions, activities, car rentals, and more.
@@ -75,12 +91,24 @@ When a user asks you to plan a multi-day trip:
 """
 
 
+DEFAULT_USER_PROFILE = {
+    "name": "Alex Chen",
+    "tier": "gold",
+    "home_airport": "JFK",
+    "currency": "USD",
+    "loyalty_programs": ["Delta SkyMiles", "Marriott Bonvoy"],
+    "dietary": ["no shellfish"],
+    "nationality": "US",
+    "language": "English",
+}
+
+
 class TravelAgent:
 
-    def __init__(self, model: str = DEFAULT_MODEL):
+    def __init__(self, model: str = DEFAULT_MODEL, user_profile: dict = None):
         self.model = model
         self.messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": build_system_prompt(user_profile or DEFAULT_USER_PROFILE)},
         ]
         self.usage = SessionUsage()
 
@@ -95,6 +123,7 @@ class TravelAgent:
                 usage=self.usage,
                 model=self.model,
                 label=f"step={i + 1}",
+                parallel_tool_calls=True,
             )
             msg = response.choices[0].message
 

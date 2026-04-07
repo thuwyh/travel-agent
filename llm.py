@@ -70,6 +70,7 @@ async def chat_completion(
     usage: Optional[SessionUsage] = None,
     model: str = DEFAULT_MODEL,
     label: str = "",
+    parallel_tool_calls: bool = False,
 ):
     """
     Thin wrapper around the chat completions API.
@@ -79,6 +80,8 @@ async def chat_completion(
     kwargs: Dict[str, Any] = {"model": model, "messages": messages}
     if tools:
         kwargs["tools"] = tools
+        if parallel_tool_calls:
+            kwargs["parallel_tool_calls"] = True
 
     response = await client.chat.completions.create(**kwargs)
 
